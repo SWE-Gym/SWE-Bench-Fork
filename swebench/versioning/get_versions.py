@@ -1,4 +1,11 @@
-import argparse, glob, json, logging, os, re, requests, subprocess, sys
+import argparse
+import glob
+import json
+import logging
+import os
+import re
+import requests
+import subprocess
 
 from multiprocessing import Pool, Manager
 
@@ -14,26 +21,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-DEBUG = False
-
 
 INSTALL_CMD = {
     "pytest-dev/pytest": "pip install -e .",
     "matplotlib/matplotlib": "python -m pip install -e .",
     "pydata/xarray": "pip install -e .",
 }
-CHECK_VERSION_CMD = {
-    'modin-project/modin': 'python -c "from modin import __version__; print(__version__)"', # this is very atypical, usually you wanna follow monai example
-    'Project-MONAI/MONAI': """cd monai && python3 -c "from _version import get_versions; print(get_versions()['version'])" """,
-    'dask/dask': """cd dask && python3 -c "from _version import get_versions; print(get_versions()['version'])" """,
-    'bokeh/bokeh': """git describe""",
-    # 'dvc'
-    'iterative/dvc': """python -m pip install setuptools_scm > /dev/null 2>&1; python -m setuptools_scm""",
-    'HypothesisWorks/hypothesis': """cd hypothesis-python/src/hypothesis && python3 -c "import version; print(version.__version__)" """,
-    'pydantic/pydantic': """cd pydantic && python3 -c "import version; print(version.VERSION)" """,
-    'pandas-dev/pandas': """python3 -c "import versioneer; print(versioneer.get_version())" """,
-}
-
 
 
 def _find_version_in_text(text: str, instance: dict) -> str:
@@ -48,16 +41,16 @@ def _find_version_in_text(text: str, instance: dict) -> str:
     """
     # Remove comments
     pattern = r'""".*?"""'
-    text = re.sub(pattern, '', text, flags=re.DOTALL)
+    text = re.sub(pattern, "", text, flags=re.DOTALL)
     # Search through all patterns
     for pattern in MAP_REPO_TO_VERSION_PATTERNS[instance["repo"]]:
         matches = re.search(pattern, text)
         if matches is not None:
-            print(instance['repo'])
-            if instance['repo'] == 'pyvista/pyvista':
+            print(instance["repo"])
+            if instance["repo"] == "pyvista/pyvista":
                 text = matches.group(0)
-                text = text.split('=')[-1].strip() if '=' in text else text.strip()
-                text = '.'.join(text.split(','))
+                text = text.split("=")[-1].strip() if "=" in text else text.strip()
+                text = ".".join(text.split(","))
                 return text
             return str(matches.group(1)).replace(" ", "")
 
@@ -134,6 +127,7 @@ def map_version_to_task_instances(task_instances: list) -> dict:
         return_map[version].append(instance)
     return return_map
 
+
 def get_versions_from_build(data: dict):
     """
     Logic for looking up versions by building the repo at the instance's base
@@ -151,8 +145,8 @@ def get_versions_from_build(data: dict):
         data["save_path"],
     )
     # Activate conda environment and set installation command
-    cmd_activate = f". {os.path.join(path_conda, 'bin/activate')}"
-    cmd_source = f". {os.path.join(path_conda, 'etc/profile.d/conda.sh')}"
+    cmd_activate = f"source {os.path.join(path_conda, 'bin/activate')}"
+    cmd_source = f"source {os.path.join(path_conda, 'etc/profile.d/conda.sh')}"
     cmd_install = INSTALL_CMD[data_tasks[0]["repo"]]
 
     # Change directory to repo testbed
@@ -192,86 +186,13 @@ def get_versions_from_build(data: dict):
         # Look up version according to repo-specific paths
         version = get_version(instance, is_build=True, path_repo=path_repo)
         instance["version"] = version
-        logger.info(f'For instance {instance["instance_id"]}, version is {version}')
+        logger.info(f"For instance {instance['instance_id']}, version is {version}")
 
     # Save results
     with open(save_path, "w") as f:
         json.dump(data_tasks, fp=f)
     os.chdir(cwd)
 
-def get_versions_from_execution(data: dict):
-    """
-    Logic for looking up versions by executing custom commands
-
-    Args:
-        data (dict): Dictionary of data for building a repo for any task instance
-            in a given list.
-    """
-    data_tasks, path_repo, conda_env, path_conda, save_path = (
-        data["data_tasks"],
-        data["path_repo"],
-        data["conda_env"],
-        data["path_conda"],
-        data["save_path"],
-    )
-    # Activate conda environment and set installation command
-    cmd_activate = f". {os.path.join(path_conda, 'bin/activate')}"
-    cmd_source = f". {os.path.join(path_conda, 'etc/profile.d/conda.sh')}"
-    cmd_check_version = CHECK_VERSION_CMD[data_tasks[0]["repo"]]
-
-    # Change directory to repo testbed
-    cwd = os.getcwd()
-    os.chdir(path_repo)
-
-    for instance in data_tasks[::-1]:
-        # Reset repo to base commit
-        subprocess.run(
-            "git restore .", check=True, shell=True, stdout=subprocess.DEVNULL
-        )
-        subprocess.run(
-            "git reset HEAD .", check=True, shell=True, stdout=subprocess.DEVNULL
-        )
-        subprocess.run(
-            "git clean -fd", shell=True, check=True, stdout=subprocess.DEVNULL
-        )
-        out_check = subprocess.run(
-            f"git -c advice.detachedHead=false checkout {instance['base_commit']}",
-            shell=True,
-            stdout=subprocess.DEVNULL,
-        )
-        if out_check.returncode != 0:
-            logger.error(f"[{instance['instance_id']}] Checkout failed")
-            continue
-        # Switch to the right conda env
-        out_install = subprocess.run(
-            f"{cmd_source}; {cmd_activate} {conda_env};",
-            shell=True,
-            stdout=subprocess.DEVNULL,
-        )
-        # check version
-        out = subprocess.run(
-            cmd_check_version,
-            shell=True,
-            capture_output=True, 
-            text=True
-        )
-        if DEBUG:
-            from IPython import embed; embed()
-        version = out.stdout
-        keep_major_minor = lambda x, sep: ".".join(x.strip().split(sep)[:2])
-        if version is not None:
-            if "." in version:
-                version = keep_major_minor(version, ".")
-            if "," in version:
-                version = keep_major_minor(version, ",")
-            version = re.sub(r"[^0-9\.]", "", version)
-        instance["version"] = version
-        logger.info(f'For instance {instance["instance_id"]}, version is {version}')
-
-    # Save results
-    with open(save_path, "w") as f:
-        json.dump(data_tasks, fp=f)
-    os.chdir(cwd)
 
 def get_versions_from_web(data: dict):
     """
@@ -288,9 +209,9 @@ def get_versions_from_web(data: dict):
         version = get_version(instance)
         if version is not None:
             instance["version"] = version
-            logger.info(f'For instance {instance["instance_id"]}, version is {version}')
+            logger.info(f"For instance {instance['instance_id']}, version is {version}")
         elif version_not_found is not None:
-            logger.info(f'[{instance["instance_id"]}]: version not found')
+            logger.info(f"[{instance['instance_id']}]: version not found")
             version_not_found.append(instance)
     with open(save_path, "w") as f:
         json.dump(data_tasks, fp=f)
@@ -322,7 +243,9 @@ def merge_results(instances_path: str, repo_prefix: str, output_dir: str = None)
         instances_path_new = os.path.join(output_dir, instances_path_new)
     with open(f"{instances_path_new}", "w") as f:
         json.dump(merged, fp=f)
-    logger.info(f"Saved merged results to {instances_path_new} ({len(merged)} instances)")
+    logger.info(
+        f"Saved merged results to {instances_path_new} ({len(merged)} instances)"
+    )
     return len(merged)
 
 
@@ -382,7 +305,7 @@ def main(args):
             )
 
     # Check that all required arguments for installing task instances are present
-    assert any([x == args.retrieval_method for x in ["build", "mix", "execution"]])
+    assert any([x == args.retrieval_method for x in ["build", "mix"]])
     assert all([x in args for x in ["testbed", "path_conda", "conda_env"]])
     conda_exec = os.path.join(args.path_conda, "bin/conda")
 
@@ -396,7 +319,7 @@ def main(args):
                 f"Creating clone of {data_tasks[0]['repo']} at {testbed_repo_name}"
             )
             cmd_clone = (
-                f"git clone git@github.com:swe-train/{repo_prefix} {testbed_repo_name}"
+                f"git clone git@github.com:swe-bench/{repo_prefix} {testbed_repo_name}"
             )
             subprocess.run(cmd_clone, shell=True, check=True, stdout=subprocess.DEVNULL)
         else:
@@ -433,13 +356,7 @@ def main(args):
 
     # Parallelized call
     pool = Pool(processes=args.num_workers)
-    if args.retrieval_method == "build":
-        pool.map(get_versions_from_build, pool_tasks)
-    elif args.retrieval_method == "execution":
-        if DEBUG:
-            get_versions_from_execution(pool_tasks[-1])
-        else:
-            pool.map(get_versions_from_execution, pool_tasks)
+    pool.map(get_versions_from_build, pool_tasks)
     pool.close()
     pool.join()
 
@@ -447,9 +364,10 @@ def main(args):
     if args.retrieval_method == "mix":
         assert (
             len(data_tasks)
-            == merge_results(args.instances_path, repo_prefix, args.output_dir) + total_web
+            == merge_results(args.instances_path, repo_prefix, args.output_dir)
+            + total_web
         )
-    elif args.retrieval_method in ["build", "execution"]:
+    elif args.retrieval_method == "build":
         assert len(data_tasks) == merge_results(
             args.instances_path, repo_prefix, args.output_dir
         )
@@ -473,13 +391,37 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--instances_path", required=True, type=str, default=None, help="Path to task instances")
-    parser.add_argument("--retrieval_method", required=True, choices=["build", "mix", "github","execution"], default="github", help="Method to retrieve versions")
-    parser.add_argument("--cleanup", action="store_true", help="Remove testbed repo and conda environments")
-    parser.add_argument("--conda_env", type=str, default=None, help="Conda environment to use")
+    parser.add_argument(
+        "--instances_path",
+        required=True,
+        type=str,
+        default=None,
+        help="Path to task instances",
+    )
+    parser.add_argument(
+        "--retrieval_method",
+        required=True,
+        choices=["build", "mix", "github"],
+        default="github",
+        help="Method to retrieve versions",
+    )
+    parser.add_argument(
+        "--cleanup",
+        action="store_true",
+        help="Remove testbed repo and conda environments",
+    )
+    parser.add_argument(
+        "--conda_env", type=str, default=None, help="Conda environment to use"
+    )
     parser.add_argument("--path_conda", type=str, default=None, help="Path to conda")
-    parser.add_argument("--num_workers", type=int, default=1, help="Number of threads to use")
-    parser.add_argument("--output_dir", type=str, default=None, help="Path to save results")
-    parser.add_argument("--testbed", type=str, default=None, help="Path to testbed repo")
+    parser.add_argument(
+        "--num_workers", type=int, default=1, help="Number of threads to use"
+    )
+    parser.add_argument(
+        "--output_dir", type=str, default=None, help="Path to save results"
+    )
+    parser.add_argument(
+        "--testbed", type=str, default=None, help="Path to testbed repo"
+    )
     args = parser.parse_args()
     main(args)

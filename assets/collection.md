@@ -1,6 +1,21 @@
 # Collecting Evaluation Tasks for SWE-Bench
 John Yang &bull; November 1, 2023
 
+> [!IMPORTANT]  
+> (03/02/2025) At this time, we are temporarily not actively supporting queries around SWE-bench task instance creation.
+> We have ongoing efforts that will standardize and fully open source the process of generating SWE-bench task instances.
+> These efforts will be released soon (within 1-2 months), so stay tuned!
+>
+> Therefore, we kindly request that at this time, *please do not create more issues in this repository around creating new task instances*.
+>
+> If you are thinking of a making a substantive, open-source research contribution that requires knowledge of SWE-bench task instance
+> collection, please reach out to Carlos and John and include 4-5 sentences detailing what you'd like to build.
+> In our current capacity, we've found that we're more successful in supporting such efforts when working more closely.
+>
+> If you'd like to create instances but prefer to keep these efforts private, at this time, we recommend reverting the repository to
+> commit `b4a40501b4d604dea28ad03418671cc597570bb9`, which is the latest public version of the validation code.
+> However, as mentioned, we are temporarily not responding to task creation questions to focus on our ongoing efforts.
+
 In this tutorial, we explain how to use the SWE-Bench repository to collect evaluation task instances from GitHub repositories.
 
 > SWE-bench's collection pipeline is currently designed to target PyPI packages. We hope to expand SWE-bench to more repositories and languages in the future.

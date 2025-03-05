@@ -17,6 +17,19 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/using-keywords-in-issues-and-pull-requests
+PR_KEYWORDS = {
+    "close",
+    "closes",
+    "closed",
+    "fix",
+    "fixes",
+    "fixed",
+    "resolve",
+    "resolves",
+    "resolved",
+}
+
 
 class Repo:
     def __init__(self, owner: str, name: str, token: Optional[str] = None):
@@ -34,7 +47,7 @@ class Repo:
         self.api = GhApi(token=token)
         self.repo = self.call_api(self.api.repos.get, owner=owner, repo=name)
 
-    def call_api(self, func: Callable, **kwargs) -> dict|None:
+    def call_api(self, func: Callable, **kwargs) -> dict | None:
         """
         API call wrapper with rate limit handling (checks every 5 minutes if rate limit is reset)
 
@@ -48,7 +61,7 @@ class Repo:
             try:
                 values = func(**kwargs)
                 return values
-            except HTTP403ForbiddenError as e:
+            except HTTP403ForbiddenError:
                 while True:
                     rl = self.api.rate_limit.get()
                     logger.info(
@@ -58,7 +71,7 @@ class Repo:
                     if rl.resources.core.remaining > 0:
                         break
                     time.sleep(60 * 5)
-            except HTTP404NotFoundError as e:
+            except HTTP404NotFoundError:
                 logger.info(f"[{self.owner}/{self.name}] Resource not found {kwargs}")
                 return None
 
@@ -74,17 +87,6 @@ class Repo:
         # Define 1. issue number regex pattern 2. comment regex pattern 3. keywords
         issues_pat = re.compile(r"(\w+)\s+\#(\d+)")
         comments_pat = re.compile(r"(?s)<!--.*?-->")
-        keywords = {
-            "close",
-            "closes",
-            "closed",
-            "fix",
-            "fixes",
-            "fixed",
-            "resolve",
-            "resolves",
-            "resolved",
-        }
 
         # Construct text to search over for issue numbers from PR body and commit messages
         text = pull.title if pull.title else ""
@@ -102,7 +104,7 @@ class Repo:
         resolved_issues = list()
         if references:
             for word, issue_num in references.items():
-                if word.lower() in keywords:
+                if word.lower() in PR_KEYWORDS:
                     resolved_issues.append(issue_num)
         return resolved_issues
 
@@ -116,7 +118,7 @@ class Repo:
     ) -> Iterator:
         """
         Return all values from a paginated API endpoint.
-        
+
         Args:
             func (callable): API function to call
             per_page (int): number of values to return per page
@@ -164,7 +166,7 @@ class Repo:
                     time.sleep(60 * 5)
         if not quiet:
             logger.info(
-                f"[{self.owner}/{self.name}] Processed {(page-1)*per_page + len(values)} values"
+                f"[{self.owner}/{self.name}] Processed {(page - 1) * per_page + len(values)} values"
             )
 
     def get_all_issues(
@@ -320,11 +322,10 @@ def extract_patches(pull: dict, repo: Repo) -> tuple[str, str]:
     """
     patch = requests.get(pull["diff_url"]).text
     patch_test = ""
-    patch_fix  = ""
+    patch_fix = ""
     for hunk in PatchSet(patch):
         if any(
-            test_word in hunk.path for test_word in
-            ['test', 'tests', 'e2e', 'testing']
+            test_word in hunk.path for test_word in ["test", "tests", "e2e", "testing"]
         ):
             patch_test += str(hunk)
         else:
@@ -393,7 +394,9 @@ def extract_problem_statement_and_hints_django(
             if "/" in timestamp:
                 timestamp = time.mktime(time.strptime(timestamp, "%m/%d/%y %H:%M:%S"))
             elif "," in timestamp:
-                timestamp = time.mktime(time.strptime(timestamp, "%b %d, %Y, %I:%M:%S %p"))
+                timestamp = time.mktime(
+                    time.strptime(timestamp, "%b %d, %Y, %I:%M:%S %p")
+                )
             else:
                 raise ValueError(f"Timestamp format not recognized: {timestamp}")
 

@@ -1,9 +1,10 @@
 import re
-from enum import Enum
+
 from swebench.harness.constants import TestStatus
+from swebench.harness.test_spec.test_spec import TestSpec
 
 
-def parse_log_pytest(log: str) -> dict[str, str]:
+def parse_log_pytest(log: str, test_spec: TestSpec) -> dict[str, str]:
     """
     Parser for test logs generated with PyTest framework
 
@@ -25,7 +26,7 @@ def parse_log_pytest(log: str) -> dict[str, str]:
     return test_status_map
 
 
-def parse_log_pytest_options(log: str) -> dict[str, str]:
+def parse_log_pytest_options(log: str, test_spec: TestSpec) -> dict[str, str]:
     """
     Parser for test logs generated with PyTest framework with options
 
@@ -47,7 +48,11 @@ def parse_log_pytest_options(log: str) -> dict[str, str]:
             has_option = option_pattern.search(test_case[1])
             if has_option:
                 main, option = has_option.groups()
-                if option.startswith("/") and not option.startswith("//") and "*" not in option:
+                if (
+                    option.startswith("/")
+                    and not option.startswith("//")
+                    and "*" not in option
+                ):
                     option = "/" + option.split("/")[-1]
                 test_name = f"{main}[{option}]"
             else:
@@ -56,7 +61,7 @@ def parse_log_pytest_options(log: str) -> dict[str, str]:
     return test_status_map
 
 
-def parse_log_django(log: str) -> dict[str, str]:
+def parse_log_django(log: str, test_spec: TestSpec) -> dict[str, str]:
     """
     Parser for test logs generated with Django tester framework
 
@@ -74,7 +79,9 @@ def parse_log_django(log: str) -> dict[str, str]:
 
         # This isn't ideal but the test output spans multiple lines
         if "--version is equivalent to version" in line:
-            test_status_map["--version is equivalent to version"] = TestStatus.PASSED.value
+            test_status_map["--version is equivalent to version"] = (
+                TestStatus.PASSED.value
+            )
 
         # Log it in case of error
         if " ... " in line:
@@ -86,7 +93,9 @@ def parse_log_django(log: str) -> dict[str, str]:
                 # TODO: Temporary, exclusive fix for django__django-7188
                 # The proper fix should involve somehow getting the test results to
                 # print on a separate line, rather than the same line
-                if line.strip().startswith("Applying sites.0002_alter_domain_unique...test_no_migrations"):
+                if line.strip().startswith(
+                    "Applying sites.0002_alter_domain_unique...test_no_migrations"
+                ):
                     line = line.split("...", 1)[-1].strip()
                 test = line.rsplit(suffix, 1)[0]
                 test_status_map[test] = TestStatus.PASSED.value
@@ -123,7 +132,7 @@ def parse_log_django(log: str) -> dict[str, str]:
     patterns = [
         r"^(.*?)\s\.\.\.\sTesting\ against\ Django\ installed\ in\ ((?s:.*?))\ silenced\)\.\nok$",
         r"^(.*?)\s\.\.\.\sInternal\ Server\ Error:\ \/(.*)\/\nok$",
-        r"^(.*?)\s\.\.\.\sSystem check identified no issues \(0 silenced\)\nok$"
+        r"^(.*?)\s\.\.\.\sSystem check identified no issues \(0 silenced\)\nok$",
     ]
     for pattern in patterns:
         for match in re.finditer(pattern, log, re.MULTILINE):
@@ -132,7 +141,7 @@ def parse_log_django(log: str) -> dict[str, str]:
     return test_status_map
 
 
-def parse_log_pytest_v2(log: str) -> dict[str, str]:
+def parse_log_pytest_v2(log: str, test_spec: TestSpec) -> dict[str, str]:
     """
     Parser for test logs generated with PyTest framework (Later Version)
 
@@ -151,15 +160,17 @@ def parse_log_pytest_v2(log: str) -> dict[str, str]:
             if line.startswith(TestStatus.FAILED.value):
                 line = line.replace(" - ", " ")
             test_case = line.split()
-            test_status_map[test_case[1]] = test_case[0]
+            if len(test_case) >= 2:
+                test_status_map[test_case[1]] = test_case[0]
         # Support older pytest versions by checking if the line ends with the test status
         elif any([line.endswith(x.value) for x in TestStatus]):
             test_case = line.split()
-            test_status_map[test_case[0]] = test_case[1]
+            if len(test_case) >= 2:
+                test_status_map[test_case[0]] = test_case[1]
     return test_status_map
 
 
-def parse_log_seaborn(log: str) -> dict[str, str]:
+def parse_log_seaborn(log: str, test_spec: TestSpec) -> dict[str, str]:
     """
     Parser for test logs generated with seaborn testing framework
 
@@ -185,7 +196,7 @@ def parse_log_seaborn(log: str) -> dict[str, str]:
     return test_status_map
 
 
-def parse_log_sympy(log: str) -> dict[str, str]:
+def parse_log_sympy(log: str, test_spec: TestSpec) -> dict[str, str]:
     """
     Parser for test logs generated with Sympy framework
 
@@ -203,9 +214,6 @@ def parse_log_sympy(log: str) -> dict[str, str]:
     for line in log.split("\n"):
         line = line.strip()
         if line.startswith("test_"):
-            if line.endswith("[FAIL]") or line.endswith("[OK]"):
-                line = line[: line.rfind("[")]
-                line = line.strip()
             if line.endswith(" E"):
                 test = line.split()[0]
                 test_status_map[test] = TestStatus.ERROR.value
@@ -218,7 +226,7 @@ def parse_log_sympy(log: str) -> dict[str, str]:
     return test_status_map
 
 
-def parse_log_matplotlib(log: str) -> dict[str, str]:
+def parse_log_matplotlib(log: str, test_spec: TestSpec) -> dict[str, str]:
     """
     Parser for test logs generated with PyTest framework
 
@@ -241,37 +249,6 @@ def parse_log_matplotlib(log: str) -> dict[str, str]:
             test_status_map[test_case[1]] = test_case[0]
     return test_status_map
 
-def parse_log_pytest_pydantic(log: str) -> dict[str, str]:
-    """
-    Parser for test logs generated with PyTest framework (Later Version)
-
-    Args:
-        log (str): log content
-    Returns:
-        dict: test case to test status mapping
-    """
-    test_status_map = {}
-    escapes = "".join([chr(char) for char in range(1, 32)])
-    for line in log.split("\n"):
-        line = re.sub(r"\[(\d+)m", "", line)
-        translator = str.maketrans("", "", escapes)
-        line = line.translate(translator)
-        # additionally to pytest v2 we remove the [...] from FAILED
-        line = re.sub(r"FAILED\s*\[.*?\]", "FAILED", line)
-        if "tests/test_main.py::test_model_post_init_supertype_private_attr" in line:
-            print(line)
-
-        if any([line.startswith(x.value) for x in TestStatus]):
-            if line.startswith(TestStatus.FAILED.value):
-                line = line.replace(" - ", " ")
-            test_case = line.split()
-            test_status_map[test_case[1]] = test_case[0]
-        # Support older pytest versions by checking if the line ends with the test status
-        elif any([line.endswith(x.value) for x in TestStatus]):
-            test_case = line.split()
-            test_status_map[test_case[0]] = test_case[1]
-    return test_status_map
-
 
 parse_log_astroid = parse_log_pytest
 parse_log_flask = parse_log_pytest
@@ -290,7 +267,7 @@ parse_log_scikit = parse_log_pytest_v2
 parse_log_sphinx = parse_log_pytest_v2
 
 
-MAP_REPO_TO_PARSER = {
+MAP_REPO_TO_PARSER_PY = {
     "astropy/astropy": parse_log_astropy,
     "django/django": parse_log_django,
     "marshmallow-code/marshmallow": parse_log_marshmallow,
@@ -310,66 +287,3 @@ MAP_REPO_TO_PARSER = {
     "sphinx-doc/sphinx": parse_log_sphinx,
     "sympy/sympy": parse_log_sympy,
 }
-
-parse_log_mypy = parse_log_pytest
-parse_log_moto = parse_log_pytest
-parse_log_conan = parse_log_pytest
-MAP_REPO_TO_PARSER.update({
-    "python/mypy": parse_log_mypy,
-    "getmoto/moto": parse_log_moto,
-    "conan-io/conan": parse_log_conan,
-})
-
-parse_log_modin = parse_log_pytest
-MAP_REPO_TO_PARSER.update({
-    "modin-project/modin": parse_log_modin,
-})
-
-parse_log_monai = parse_log_pytest
-MAP_REPO_TO_PARSER.update({
-    "Project-MONAI/MONAI": parse_log_monai,
-})
-
-parse_log_dvc = parse_log_pytest
-MAP_REPO_TO_PARSER.update({
-    "iterative/dvc": parse_log_dvc,
-})
-
-parse_log_dask = parse_log_pytest
-MAP_REPO_TO_PARSER.update({
-    "dask/dask": parse_log_dask,
-})
-
-parse_log_bokeh = parse_log_pytest
-MAP_REPO_TO_PARSER.update({
-    "bokeh/bokeh": parse_log_bokeh,
-})
-
-parse_log_mne = parse_log_pytest
-MAP_REPO_TO_PARSER.update({
-    "mne-tools/mne-python": parse_log_mne,
-})
-
-parse_log_hypothesis = parse_log_pytest
-MAP_REPO_TO_PARSER.update({
-    "HypothesisWorks/hypothesis": parse_log_hypothesis,
-})
-
-parse_log_pydantic = parse_log_pytest_pydantic
-MAP_REPO_TO_PARSER.update({
-    "pydantic/pydantic": parse_log_pydantic,
-})
-
-parse_log_pandas = parse_log_pytest
-MAP_REPO_TO_PARSER.update({
-    "pandas-dev/pandas": parse_log_pandas
-})
-
-parse_log_hydra = parse_log_pytest
-MAP_REPO_TO_PARSER.update({
-    "facebookresearch/hydra": parse_log_hydra
-})
-
-# All keys should be in lower case
-LOWER_MAP_REPO_TO_PARSER = {k.lower(): v for k, v in MAP_REPO_TO_PARSER.items()}
-MAP_REPO_TO_PARSER = LOWER_MAP_REPO_TO_PARSER

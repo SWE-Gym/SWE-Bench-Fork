@@ -12,18 +12,18 @@ REPO_TARGET=$1
 gh repo view "$REPO_TARGET" > /dev/null || exit 1
 
 # Set the organization and repository names
-ORG_NAME="swe-train"
+ORG_NAME="swe-bench"
 NEW_REPO_NAME="${REPO_TARGET//\//__}"
 
 # Check if the new repository already exists
-# gh repo view "$ORG_NAME/$NEW_REPO_NAME" > /dev/null 2>&1
-# if [ $? -eq 0 ]; then
-#     echo "The repository $ORG_NAME/$NEW_REPO_NAME already exists."
-#     exit 1
-# else
-#     # Create mirror repository
-gh repo create "$ORG_NAME/$NEW_REPO_NAME" --private
-# fi
+gh repo view "$ORG_NAME/$NEW_REPO_NAME" > /dev/null 2>&1
+if [ $? -eq 0 ]; then
+    echo "The repository $ORG_NAME/$NEW_REPO_NAME already exists."
+    exit 1
+else
+    # Create mirror repository
+    gh repo create "$ORG_NAME/$NEW_REPO_NAME" --private
+fi
 
 # Check if the repository creation was successful
 if [ $? -eq 0 ]; then
@@ -67,7 +67,7 @@ if [ -d "$NEW_REPO_NAME/.github/workflows" ]; then
     git push origin main;  # Change 'master' to your desired branch
     cd ..;
 else
-    echo "$REPO_NAME/.github/workflows does not exist. No action required."
+    echo "$NEW_REPO_NAME/.github/workflows does not exist. No action required."
 fi
 
 rm -rf "$NEW_REPO_NAME"
