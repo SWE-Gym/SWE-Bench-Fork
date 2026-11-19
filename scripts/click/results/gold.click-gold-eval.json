@@ -1,0 +1,32 @@
+{
+    "total_instances": 2,
+    "submitted_instances": 2,
+    "completed_instances": 2,
+    "resolved_instances": 2,
+    "unresolved_instances": 0,
+    "empty_patch_instances": 0,
+    "error_instances": 0,
+    "unstopped_instances": 0,
+    "completed_ids": [
+        "pallets__click-2724",
+        "pallets__click-2730"
+    ],
+    "incomplete_ids": [],
+    "empty_patch_ids": [],
+    "submitted_ids": [
+        "pallets__click-2724",
+        "pallets__click-2730"
+    ],
+    "resolved_ids": [
+        "pallets__click-2724",
+        "pallets__click-2730"
+    ],
+    "unresolved_ids": [],
+    "error_ids": [],
+    "unstopped_containers": [],
+    "unremoved_images": [
+        "sweb.eval.x86_64.pallets__click-2724:latest",
+        "sweb.eval.x86_64.pallets__click-2730:latest"
+    ],
+    "schema_version": 2
+}
