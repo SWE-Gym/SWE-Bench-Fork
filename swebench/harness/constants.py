@@ -1038,7 +1038,8 @@ MAP_REPO_TO_REQS_PATHS = {
     "sympy/sympy": ["requirements-dev.txt"],
     "Project-MONAI/MONAI": ["requirements-dev.txt"],
     "HypothesisWorks/hypothesis": ["requirements/tools.txt"],
-    "facebookresearch/hydra": ['requirements/dev.txt']
+    "facebookresearch/hydra": ['requirements/dev.txt'],
+    "pallets/click": ["requirements/tests.txt", "requirements/tests.in"],
 }
 
 
@@ -2018,6 +2019,25 @@ for k in ['0.1', '0.9', '0.10', '0.11', '0.12', '1.0', '1.1', '1.2']:
     # isort is moved to PyCQA now
     SPECS_HYDRA[k]['install'] = "sed -i 's|isort@git+git://github.com/timothycrosley/isort|isort@git+https://github.com/timothycrosley/isort|g' requirements/dev.txt; " + SPECS_HYDRA[k]['install']
 MAP_REPO_VERSION_TO_SPECS.update({"facebookresearch/hydra": SPECS_HYDRA})
+
+
+# click
+# https://github.com/pallets/click/blob/8.1.7/tox.ini
+# Test deps come from requirements/tests.txt (pip-compile-multi lock, pins pytest),
+# then click itself is installed in editable mode (flit backend). Pure python, no system deps.
+TEST_CLICK = "pytest -rA --tb=short -p no:cacheprovider"
+SPECS_CLICK = {
+    k: {
+        "python": "3.11",
+        "packages": "requirements.txt",
+        "install": "python -m pip install -e .;",
+        "test_cmd": TEST_CLICK,
+    }
+    # only 8.1 has been validated end-to-end; later versions moved to uv / pyproject
+    # dependency groups and need a different install recipe
+    for k in ["8.1"]
+}
+MAP_REPO_VERSION_TO_SPECS.update({"pallets/click": SPECS_CLICK})
 
 
 # All keys should be in lower case

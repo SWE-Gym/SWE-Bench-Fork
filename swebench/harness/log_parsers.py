@@ -370,6 +370,11 @@ MAP_REPO_TO_PARSER.update({
     "facebookresearch/hydra": parse_log_hydra
 })
 
+parse_log_click = parse_log_pytest
+MAP_REPO_TO_PARSER.update({
+    "pallets/click": parse_log_click
+})
+
 # All keys should be in lower case
 LOWER_MAP_REPO_TO_PARSER = {k.lower(): v for k, v in MAP_REPO_TO_PARSER.items()}
 MAP_REPO_TO_PARSER = LOWER_MAP_REPO_TO_PARSER

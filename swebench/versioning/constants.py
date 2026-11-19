@@ -63,6 +63,10 @@ SWE_BENCH_URL_RAW = "https://raw.githubusercontent.com/"
 MAP_REPO_TO_VERSION_PATHS.update({"python/mypy": ["mypy/version.py"]})
 MAP_REPO_TO_VERSION_PATTERNS.update({"python/mypy": [r'__version__ = [\'"](.*)[\'"]', r"VERSION = \((.*)\)"]})
 
+# pallets/click
+MAP_REPO_TO_VERSION_PATHS.update({"pallets/click": ["src/click/__init__.py", "click/__init__.py"]})
+MAP_REPO_TO_VERSION_PATTERNS.update({"pallets/click": [r'__version__ = [\'"](.*)[\'"]']})
+
 # getmoto/moto
 MAP_REPO_TO_VERSION_PATHS.update({"getmoto/moto": ["moto/__init__.py"]})
 MAP_REPO_TO_VERSION_PATTERNS.update({"getmoto/moto": [r'__version__ = [\'"](.*)[\'"]', r"VERSION = \((.*)\)"]})
