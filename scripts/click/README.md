@@ -79,7 +79,20 @@ this machine, containers could not complete TLS to one GitHub raw-content server
 
 ## 5. Results
 
-_Filled in after the validation run, see below._
+Validation ran on 19 Nov 2026 with Docker 28.4 and the Python 3.11 env image
+`sweb.env.x86_64.023b307fc1febdeea79ada`.
+
+| instance_id | FAIL_TO_PASS | PASS_TO_PASS | PASS_TO_FAIL | Kept |
+|---|---|---|---|---|
+| `pallets__click-2724` | 1 (`tests/test_options.py::test_show_default_with_empty_string`) | 109 | 0 | yes |
+| `pallets__click-2730` | 1 (`tests/test_defaults.py::test_flag_default_map`) | 4 | 0 | yes |
+
+Final check with the standard evaluator (`run_evaluation --predictions_path gold`):
+**2 submitted, 2 resolved, 0 unresolved, 0 errors.** The report is in
+`scripts/click/results/gold.click-gold-eval.json`.
+
+Image build times: base image about 6 min, env image about 6 min, the two
+instance images under 1 min. Each test run takes about 25 s.
 
 ## 6. How trajectories fit in (paper §4–5)
 
